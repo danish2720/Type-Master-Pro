@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pro Typing Master - Celebration Edition</title>
+    <!-- Confetti Library -->
+    <script src="https://jsdelivr.net"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #121212; color: #ffffff; display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
+        .container { background: #1e1e1e; padding: 30px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); width: 95%; max-width: 900px; text-align: center; position: relative; }
+        h1 { color: #bb86fc; margin-bottom: 5px; }
+        .record-box { background: #333; color: #03dac6; padding: 10px; border-radius: 10px; margin-bottom: 20px; font-weight: bold; border: 1px solid #03dac6; }
+        .controls { display: flex; justify-content: center; gap: 20px; margin-bottom: 20px; }
+        select { padding: 10px; background: #333; color: white; border-radius: 8px; border: 1px solid #bb86fc; outline: none; }
+        #text-display { font-size: 26px; line-height: 1.6; margin: 20px 0; background: #252525; padding: 25px; border-radius: 12px; text-align: left; min-height: 120px; letter-spacing: 1px; }
+        #input-field { width: 100%; padding: 15px; font-size: 22px; background: #333; color: white; border: 2px solid #444; border-radius: 12px; outline: none; box-sizing: border-box; }
+        .correct { color: #03dac6; }
+        .wrong { color: #cf6679; background: rgba(207, 102, 121, 0.2); border-radius: 4px; }
+        .stats { display: flex; justify-content: space-around; margin-top: 25px; font-size: 22px; color: #03dac6; font-weight: bold; }
+        button { margin-top: 20px; padding: 12px 30px; background: #bb86fc; color: #000; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        
+        /* Modal Style for Win */
+        #win-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e1e1e; border: 2px solid #bb86fc; padding: 40px; border-radius: 20px; z-index: 100; text-align: center; box-shadow: 0 0 50px rgba(187, 134, 252, 0.5); }
+        #win-modal h2 { color: #03dac6; font-size: 40px; margin: 0; }
+        #win-modal p { font-size: 20px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+
+    <h1>Type Master Pro</h1>
+    
+    <div class="container">
+        <!-- High Score Display -->
+        <div class="record-box">🏆 All-Time Record: <span id="high-score">0</span> WPM</div>
+
+        <div class="controls">
+            <select id="level" onchange="resetGame()">
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+            </select>
+            <select id="duration" onchange="resetGame()">
+                <option value="60">1 Min</option>
+                <option value="120">2 Min</option>
+            </select>
+        </div>
+
+        <div id="text-display">Loading...</div>
+        <textarea id="input-field" rows="3" placeholder="Type here..." autofocus></textarea>
+
+        <div class="stats">
+            <div>Time: <span id="timer">60</span>s</div>
+            <div>WPM: <span id="wpm">0</span></div>
+            <div>Acc: <span id="accuracy">100</span>%</div>
+        </div>
+        <button onclick="resetGame()">Restart</button>
+    </div>
+
+    <!-- Celebration Modal -->
+    <div id="win-modal">
+        <h2>YOU WIN! 🎉</h2>
+        <p id="win-msg">New World Record!</p>
+        <button onclick="closeModal()">Play Again</button>
+    </div>
+
+    <script>
+        const paragraphs = {
+            easy: ["The quick brown fox jumps over the lazy dog. Hard work is the key to success in every life."],
+            medium: ["Success is not final, failure is not fatal: it is the courage to continue that counts. Believe in yourself and all that you are."],
+            hard: ["Artificial Intelligence is transforming the global landscape of technology. Ensuring that these systems serve humanity requires a delicate balance of innovation and ethics."]
+        };
+
+        let timeLeft, totalTime, timer = null, isRunning = false, lastText = "";
+        let highScore = localStorage.getItem('highScore') || 0;
+        document.getElementById('high-score').innerText = highScore;
+
+        function loadText() {
+            const level = document.getElementById('level').value;
+            const text = paragraphs[level][0]; 
+            textDisplay.innerHTML = text.split('').map(char => `<span>${char}</span>`).join('');
+        }
+
+        function resetGame() {
+            clearInterval(timer);
+            totalTime = parseInt(document.getElementById('duration').value);
+            timeLeft = totalTime;
+            isRunning = false;
+            inputField.value = "";
+            inputField.disabled = false;
+            document.getElementById('timer').innerText = timeLeft;
+            document.getElementById('wpm').innerText = "0";
+            closeModal();
+            loadText();
+        }
+
+        inputField.addEventListener('input', () => {
+            if (!isRunning) { startTimer(); isRunning = true; }
+            const spans = textDisplay.querySelectorAll('span');
+            const chars = inputField.value.split('');
+            let correct = 0;
+
+            spans.forEach((span, i) => {
+                if (chars[i] == null) span.className = '';
+                else if (chars[i] === span.innerText) { span.className = 'correct'; correct++; }
+                else span.className = 'wrong';
+            });
+
+            let timeElapsed = (totalTime - timeLeft);
+            let currentWPM = Math.round((inputField.value.length / 5) / (timeElapsed / 60)) || 0;
+            document.getElementById('wpm').innerText = currentWPM;
+
+            // Winner Logic: Agar pura paragraph sahi type ho jaye
+            if (inputField.value === textDisplay.innerText) {
+                endGame(currentWPM);
+            }
+        });
+
+        function startTimer() {
+            timer = setInterval(() => {
+                if (timeLeft > 0) { timeLeft--; document.getElementById('timer').innerText = timeLeft; }
+                else { endGame(document.getElementById('wpm').innerText); }
+            }, 1000);
+        }
+
+        function endGame(finalWPM) {
+            clearInterval(timer);
+            inputField.disabled = true;
+
+            if (finalWPM > highScore) {
+                highScore = finalWPM;
+                localStorage.setItem('highScore', highScore);
+                document.getElementById('high-score').innerText = highScore;
+                showWinEffect("New Record: " + finalWPM + " WPM!");
+            } else {
+                alert("Time Up! Your Speed: " + finalWPM + " WPM");
+            }
+        }
+
+        function showWinEffect(msg) {
+            document.getElementById('win-msg').innerText = msg;
+            document.getElementById('win-modal').style.display = 'block';
+            
+            // Celebration Confetti!
+            var duration = 3 * 1000;
+            var end = Date.now() + duration;
+            (function frame() {
+                confetti({ particleCount: 7, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#bb86fc', '#03dac6'] });
+                confetti({ particleCount: 7, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#bb86fc', '#03dac6'] });
+                if (Date.now() < end) { requestAnimationFrame(frame); }
+            }());
+        }
+
+        function closeModal() { document.getElementById('win-modal').style.display = 'none'; }
+
+        const textDisplay = document.getElementById('text-display');
+        const inputField = document.getElementById('input-field');
+        resetGame();
+    </script>
+</body>
+</html>
